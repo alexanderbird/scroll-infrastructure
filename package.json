@@ -1,8 +1,8 @@
 {
-  "name": "tmp",
+  "name": "scroll-bible-infrastructure",
   "version": "0.1.0",
   "bin": {
-    "tmp": "bin/tmp.js"
+    "infrastructure": "bin/infrastructure.js"
   },
   "scripts": {
     "build": "tsc",
