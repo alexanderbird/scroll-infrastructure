@@ -1,6 +1,8 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
- import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as apigateway from 'aws-cdk-lib/aws-apigateway';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
 
 export class ApplicationStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -23,12 +25,25 @@ export class ApplicationStack extends cdk.Stack {
     const table = new dynamodb.Table(this, 'Texts', {
       partitionKey: { name: 'collection', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'id', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
     });
 
     table.addLocalSecondaryIndex({
       indexName: 'feed',
       sortKey: { name: 'feedKey', type: dynamodb.AttributeType.STRING },
       projectionType: dynamodb.ProjectionType.ALL,
+    });
+
+
+    //const api = new apigateway.RestApi(this, 'Scroll');
+
+    // https://serverlessland.com/patterns/apigw-dynamodb-cdk
+    
+
+    new ssm.StringParameter(this, 'Parameter', {
+      description: 'The name of the DynamoDB table used to store the texts for the application',
+      parameterName: 'textsTableName',
+      stringValue: table.tableName,
     });
 
   }
