@@ -40,49 +40,56 @@ export class ApplicationStack extends cdk.Stack {
       projectionType: dynamodb.ProjectionType.ALL,
     });
 
+    const apiGatewayIntegrationRole = new iam.Role(this, 'ApiGatewayIntegrationRole', {
+      assumedBy: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+    });
 
-    const api = new apigateway.RestApi(this, 'Scroll');
+    table.grantReadData(apiGatewayIntegrationRole)
 
-    // https://serverlessland.com/patterns/apigw-dynamodb-cdk
+    const api = new apigateway.RestApi(this, 'Scroll', {
+      endpointConfiguration: {
+        types: [ apigateway.EndpointType.REGIONAL ]
+      }
+    });
+    const plan = api.addUsagePlan('UsagePlan', {
+      apiStages: [{ api, stage: api.deploymentStage }],
+      throttle: { burstLimit: 100, rateLimit: 0.3 },
+      quota: {limit: 1000000, period: apigateway.Period.MONTH }
+    });
+    const publicAccessApiKey = new apigateway.ApiKey(this, 'PublicAccessAPIKey', {
+      apiKeyName: 'PublicAccess',
+      description: 'Grant public access to the API',
+      enabled: true,
+    });
+    plan.addApiKey(publicAccessApiKey);
 
     const feedApi = api.root.addResource('Feed')
 
-    // Allow the RestApi to access DynamoDb by assigning this role to the integration
-    const apiGatewayIntegrationRole = new iam.Role(this, 'ApiGatewayIntegrationRole', {
-      assumedBy: new iam.ServicePrincipal('apigateway.amazonaws.com'),
-    })
-    table.grantReadData(apiGatewayIntegrationRole)
-
-    const dynamoQueryIntegration = new apigateway.AwsIntegration({
-      service: 'dynamodb',
-      action: 'Query',
-      options: {
-        passthroughBehavior: apigateway.PassthroughBehavior.WHEN_NO_TEMPLATES,
-        credentialsRole: apiGatewayIntegrationRole,
-        requestParameters: {
-          'integration.request.querystring.language': 'method.request.querystring.language',
-          'integration.request.querystring.translation': 'method.request.querystring.translation',
-          'integration.request.querystring.feedStart': 'method.request.querystring.feedStart',
-        },
-        // aws dynamodb query --table $table --index-name feed   
-        // --key-condition-expression 'textId = :a AND feedKey > :b'
-        // --expression-attribute-values '{ ":a": { "S": "bible|en|web-mini" }, ":b": { "S": "00" }}'
-        requestTemplates: {
-          'application/json': JSON.stringify({
-              TableName: table.tableName,
-              IndexName: feedIndex,
-              KeyConditionExpression: `${partitionKey} = :partitionKey AND ${feedIndexSortKey} > :feedStart`,
-              ExpressionAttributeValues: {
-                  ':partitionKey': { S: "bible|$input.params('language')|$input.params('translation')" },
-                  ':feedStart': { S: "$input.params('feedStart')" },
-              }
-          }),
-        },
-        integrationResponses: [{ statusCode: '200' }],
-      }
-    });
+    const dynamoQueryIntegration = new apigateway.AwsIntegration({ service: 'dynamodb', action: 'Query', options: {
+      passthroughBehavior: apigateway.PassthroughBehavior.WHEN_NO_TEMPLATES,
+      credentialsRole: apiGatewayIntegrationRole,
+      requestParameters: {
+        'integration.request.querystring.language': 'method.request.querystring.language',
+        'integration.request.querystring.translation': 'method.request.querystring.translation',
+        'integration.request.querystring.feedStart': 'method.request.querystring.feedStart',
+      },
+      requestTemplates: {
+        'application/json': JSON.stringify({
+            TableName: table.tableName,
+            IndexName: feedIndex,
+            KeyConditionExpression: `${partitionKey} = :partitionKey AND ${feedIndexSortKey} > :feedStart`,
+            ExpressionAttributeValues: {
+                ':partitionKey': { S: "bible|$input.params('language')|$input.params('translation')" },
+                ':feedStart': { S: "$input.params('feedStart')" },
+            }
+        }),
+      },
+      integrationResponses: [{ statusCode: '200' }],
+    }});
 
     feedApi.addMethod('GET', dynamoQueryIntegration, {
+      authorizationType: apigateway.AuthorizationType.NONE,
+      apiKeyRequired: true,
       methodResponses: [{ statusCode: '200' }],
       requestParameters: {
         'method.request.querystring.language': true,
@@ -97,5 +104,16 @@ export class ApplicationStack extends cdk.Stack {
       stringValue: table.tableName,
     });
 
+    new ssm.StringParameter(this, 'apiId', {
+      description: 'The ID of the API Gateway instance',
+      parameterName: 'apiId',
+      stringValue: api.restApiId,
+    });
+
+    new ssm.StringParameter(this, 'publicAccessApiKey', {
+      description: 'An API key granting access to the API Gateway',
+      parameterName: 'publicAccessApiKey',
+      stringValue: publicAccessApiKey.keyId,
+    });
   }
 }
