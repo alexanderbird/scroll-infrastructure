@@ -49,6 +49,15 @@ export class ApplicationStack extends cdk.Stack {
     const api = new apigateway.RestApi(this, 'Scroll', {
       endpointConfiguration: {
         types: [ apigateway.EndpointType.REGIONAL ]
+      },
+      defaultCorsPreflightOptions: {
+        //allowOrigins: apigateway.Cors.ALL_ORIGINS,
+        allowOrigins: [
+          'https://scroll-bible.netlify.app',
+          'http://scrollbible.localhost:8080',
+        ],
+        allowMethods: [ 'OPTIONS', 'GET' ],
+        allowHeaders: apigateway.Cors.DEFAULT_HEADERS.concat(['x-api-key'])
       }
     });
     const plan = api.addUsagePlan('UsagePlan', {
@@ -84,7 +93,12 @@ export class ApplicationStack extends cdk.Stack {
             }
         }),
       },
-      integrationResponses: [{ statusCode: '200' }],
+      integrationResponses: [{
+        statusCode: '200',
+        //responseParameters: {
+          //'integration.response.header.Access-Control-Allow-Origin': "'*'"
+        //},
+      }],
     }});
 
     feedApi.addMethod('GET', dynamoQueryIntegration, {
@@ -95,7 +109,7 @@ export class ApplicationStack extends cdk.Stack {
         'method.request.querystring.language': true,
         'method.request.querystring.translation': true,
         'method.request.querystring.feedStart': true,
-      }
+      },
     });
 
     new ssm.StringParameter(this, 'Parameter', {

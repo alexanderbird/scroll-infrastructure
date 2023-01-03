@@ -4,6 +4,11 @@ All the infrastructure as code for Scroll Bible
 
 ## Developer Notes
 
+### Deploy
+- `npm run cdk deploy`
+- repeat the manual steps described [here](https://stackoverflow.com/questions/74988904/how-do-i-add-custom-headers-to-api-gateway-restapi-integration-responses-via-cdk)
+  to add a CORS header to each Resource 
+
 
 The `cdk.json` file tells the CDK Toolkit how to execute your app.
 
