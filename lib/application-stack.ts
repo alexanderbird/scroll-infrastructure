@@ -57,6 +57,9 @@ export class ApplicationStack extends cdk.Stack {
       throttleConfig: { burstLimit: 100, rateLimit: 0.3 },
       monthlyRequestLimit: 1000000,
     });
+
+    const partitionKeyTemplate = "bible|$input.params('language')|$input.params('translation')";
+
     api.addQueryMethod({
       name: 'Feed',
       parameters: [ 'language', 'translation', 'feedStart' ],
@@ -66,12 +69,45 @@ export class ApplicationStack extends cdk.Stack {
             IndexName: feedIndex,
             KeyConditionExpression: `${partitionKey} = :partitionKey AND ${feedIndexSortKey} > :feedStart`,
             ExpressionAttributeValues: {
-                ':partitionKey': { S: "bible|$input.params('language')|$input.params('translation')" },
+                ':partitionKey': { S: partitionKeyTemplate },
                 ':feedStart': { S: "$input.params('feedStart')" },
             }
         }),
       }
     });
+    api.addQueryMethod({
+      name: 'Canonical',
+      parameters: [ 'language', 'translation', 'startingId', 'idPrefix' ],
+      requestTemplates: {
+        'application/json': JSON.stringify({
+            TableName: table.tableName,
+            ExclusiveStartKey: {
+              [partitionKey]: { S: partitionKeyTemplate },
+              [sortKey]: { S: "$input.params('startingId')" },
+            },
+            KeyConditionExpression: `${partitionKey} = :partitionKey AND begins_with(${sortKey}, :idPrefix)`,
+            ExpressionAttributeValues: {
+                ':partitionKey': { S: partitionKeyTemplate },
+                ':idPrefix': { S: "$input.params('idPrefix')" },
+            }
+        }),
+      }
+    });
+    //api.addQueryMethod({
+      //name: 'ReverseCanonical',
+      //parameters: [ 'language', 'translation', 'firstId' ],
+      //requestTemplates: {
+        //'application/json': JSON.stringify({
+            //TableName: table.tableName,
+            //ScanIndexForward: false, 👈🏻 MAGIC
+            //KeyConditionExpression: `${partitionKey} = :partitionKey AND ${sortKey} < :firstId`,
+            //ExpressionAttributeValues: {
+                //':partitionKey': { S: partitionKeyTemplate },
+                //':firstId': { S: "$input.params('firstId')" },
+            //}
+        //}),
+      //}
+    //});
 
     new ssm.StringParameter(this, 'Parameter', {
       description: 'The name of the DynamoDB table used to store the texts for the application',
