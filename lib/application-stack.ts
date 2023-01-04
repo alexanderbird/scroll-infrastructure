@@ -4,6 +4,7 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import { DynamoDbFacadeApi } from './DynamoDbFacadeApi';
 
 export class ApplicationStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -46,41 +47,19 @@ export class ApplicationStack extends cdk.Stack {
 
     table.grantReadData(apiGatewayIntegrationRole);
 
-    const api = new apigateway.RestApi(this, 'Scroll', {
-      endpointConfiguration: {
-        types: [ apigateway.EndpointType.REGIONAL ],
-      },
-      defaultCorsPreflightOptions: {
-        allowOrigins: [
-          'https://scroll-bible.netlify.app',
-          'http://scrollbible.localhost:8080',
-        ],
-        allowMethods: [ 'OPTIONS', 'GET' ],
-        allowHeaders: apigateway.Cors.DEFAULT_HEADERS.concat(['x-api-key'])
-      },
-    });
-    const plan = api.addUsagePlan('UsagePlan', {
-      apiStages: [{ api, stage: api.deploymentStage }],
-      throttle: { burstLimit: 100, rateLimit: 0.3 },
-      quota: {limit: 1000000, period: apigateway.Period.MONTH },
-    });
-    const publicAccessApiKey = new apigateway.ApiKey(this, 'PublicAccessAPIKey', {
-      apiKeyName: 'PublicAccess',
-      description: 'Grant public access to the API',
-      enabled: true,
-    });
-    plan.addApiKey(publicAccessApiKey);
-
-    const feedApi = api.root.addResource('Feed');
-
-    const dynamoQueryIntegration = new apigateway.AwsIntegration({ service: 'dynamodb', action: 'Query', options: {
-      passthroughBehavior: apigateway.PassthroughBehavior.WHEN_NO_MATCH,
+    const api = new DynamoDbFacadeApi(this, 'ScrollApi', {
+      apiName: 'Scroll',
       credentialsRole: apiGatewayIntegrationRole,
-      requestParameters: {
-        'integration.request.querystring.language': 'method.request.querystring.language',
-        'integration.request.querystring.translation': 'method.request.querystring.translation',
-        'integration.request.querystring.feedStart': 'method.request.querystring.feedStart',
-      },
+      allowedOrigins: [
+        'https://scroll-bible.netlify.app',
+        'http://scrollbible.localhost:8080',
+      ],
+      throttleConfig: { burstLimit: 100, rateLimit: 0.3 },
+      monthlyRequestLimit: 1000000,
+    });
+    api.addQueryMethod({
+      name: 'Feed',
+      parameters: [ 'language', 'translation', 'feedStart' ],
       requestTemplates: {
         'application/json': JSON.stringify({
             TableName: table.tableName,
@@ -91,24 +70,7 @@ export class ApplicationStack extends cdk.Stack {
                 ':feedStart': { S: "$input.params('feedStart')" },
             }
         }),
-      },
-      integrationResponses: [{
-        statusCode: '200',
-        //responseParameters: {
-          //'integration.response.header.Access-Control-Allow-Origin': "'*'"
-        //},
-      }],
-    }});
-
-    feedApi.addMethod('GET', dynamoQueryIntegration, {
-      authorizationType: apigateway.AuthorizationType.NONE,
-      apiKeyRequired: true,
-      methodResponses: [{ statusCode: '200' }],
-      requestParameters: {
-        'method.request.querystring.language': true,
-        'method.request.querystring.translation': true,
-        'method.request.querystring.feedStart': true,
-      },
+      }
     });
 
     new ssm.StringParameter(this, 'Parameter', {
@@ -120,13 +82,13 @@ export class ApplicationStack extends cdk.Stack {
     new ssm.StringParameter(this, 'apiId', {
       description: 'The ID of the API Gateway instance',
       parameterName: 'apiId',
-      stringValue: api.restApiId,
+      stringValue: api.id,
     });
 
     new ssm.StringParameter(this, 'publicAccessApiKey', {
       description: 'An API key granting access to the API Gateway',
       parameterName: 'publicAccessApiKey',
-      stringValue: publicAccessApiKey.keyId,
+      stringValue: api.publicAccessApiKey,
     });
   }
 }
