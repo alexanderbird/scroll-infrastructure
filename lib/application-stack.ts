@@ -3,7 +3,7 @@ import { Construct } from 'constructs';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
-import * as iam from 'aws-cdk-lib/aws-iam'
+import * as iam from 'aws-cdk-lib/aws-iam';
 
 export class ApplicationStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -44,26 +44,25 @@ export class ApplicationStack extends cdk.Stack {
       assumedBy: new iam.ServicePrincipal('apigateway.amazonaws.com'),
     });
 
-    table.grantReadData(apiGatewayIntegrationRole)
+    table.grantReadData(apiGatewayIntegrationRole);
 
     const api = new apigateway.RestApi(this, 'Scroll', {
       endpointConfiguration: {
-        types: [ apigateway.EndpointType.REGIONAL ]
+        types: [ apigateway.EndpointType.REGIONAL ],
       },
       defaultCorsPreflightOptions: {
-        //allowOrigins: apigateway.Cors.ALL_ORIGINS,
         allowOrigins: [
           'https://scroll-bible.netlify.app',
           'http://scrollbible.localhost:8080',
         ],
         allowMethods: [ 'OPTIONS', 'GET' ],
         allowHeaders: apigateway.Cors.DEFAULT_HEADERS.concat(['x-api-key'])
-      }
+      },
     });
     const plan = api.addUsagePlan('UsagePlan', {
       apiStages: [{ api, stage: api.deploymentStage }],
       throttle: { burstLimit: 100, rateLimit: 0.3 },
-      quota: {limit: 1000000, period: apigateway.Period.MONTH }
+      quota: {limit: 1000000, period: apigateway.Period.MONTH },
     });
     const publicAccessApiKey = new apigateway.ApiKey(this, 'PublicAccessAPIKey', {
       apiKeyName: 'PublicAccess',
@@ -72,10 +71,10 @@ export class ApplicationStack extends cdk.Stack {
     });
     plan.addApiKey(publicAccessApiKey);
 
-    const feedApi = api.root.addResource('Feed')
+    const feedApi = api.root.addResource('Feed');
 
     const dynamoQueryIntegration = new apigateway.AwsIntegration({ service: 'dynamodb', action: 'Query', options: {
-      passthroughBehavior: apigateway.PassthroughBehavior.WHEN_NO_TEMPLATES,
+      passthroughBehavior: apigateway.PassthroughBehavior.WHEN_NO_MATCH,
       credentialsRole: apiGatewayIntegrationRole,
       requestParameters: {
         'integration.request.querystring.language': 'method.request.querystring.language',
