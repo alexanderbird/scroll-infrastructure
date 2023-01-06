@@ -56,7 +56,7 @@ export class DynamoDbFacadeApi extends Construct {
     const feedApi = this.api.root.addResource(name);
 
     const dynamoQueryIntegration = new apigateway.AwsIntegration({ service: 'dynamodb', action: 'Query', options: {
-      passthroughBehavior: apigateway.PassthroughBehavior.WHEN_NO_MATCH,
+      passthroughBehavior: apigateway.PassthroughBehavior.WHEN_NO_TEMPLATES,
       credentialsRole: this.props.credentialsRole,
       requestParameters: this.mapParameters(parameters, parameter => ({
         key: 'integration.request.querystring.' + parameter,
@@ -65,16 +65,21 @@ export class DynamoDbFacadeApi extends Construct {
       requestTemplates,
       integrationResponses: [{
         statusCode: '200',
-        //responseParameters: {
-          //'integration.response.header.Access-Control-Allow-Origin': "'*'"
-        //},
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': "'*'",
+        },
       }],
     }});
 
     feedApi.addMethod('GET', dynamoQueryIntegration, {
       authorizationType: apigateway.AuthorizationType.NONE,
       apiKeyRequired: true,
-      methodResponses: [{ statusCode: '200' }],
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Access-Control-Allow-Origin': true,
+        }
+      }],
       requestParameters: this.mapParameters(parameters, name => ({
         key: 'method.request.querystring.' + name,
         value: true
