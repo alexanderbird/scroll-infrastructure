@@ -60,8 +60,9 @@ export class ApplicationStack extends cdk.Stack {
 
     const partitionKeyTemplate = "bible|$input.params('language')|$input.params('translation')";
 
-    api.addQueryMethod({
+    api.addGetMethod({
       name: 'Feed',
+      dynamoDbAction: 'Query',
       parameters: [ 'language', 'translation', 'feedStart' ],
       requestTemplates: {
         'application/json': JSON.stringify({
@@ -75,8 +76,9 @@ export class ApplicationStack extends cdk.Stack {
         }),
       }
     });
-    api.addQueryMethod({
+    api.addGetMethod({
       name: 'Canonical',
+      dynamoDbAction: 'Query',
       parameters: [ 'language', 'translation', 'startingId', 'idPrefix' ],
       requestTemplates: {
         'application/json': JSON.stringify({
@@ -93,8 +95,9 @@ export class ApplicationStack extends cdk.Stack {
         }),
       }
     });
-    api.addQueryMethod({
+    api.addGetMethod({
       name: 'ReverseCanonical',
+      dynamoDbAction: 'Query',
       parameters: [ 'language', 'translation', 'startingId', 'idPrefix' ],
       requestTemplates: {
         'application/json': JSON.stringify({
@@ -110,6 +113,28 @@ export class ApplicationStack extends cdk.Stack {
                 ':idPrefix': { S: "$input.params('idPrefix')" },
             }
         }),
+      }
+    });
+    api.addGetMethod({
+      name: 'Verses',
+      dynamoDbAction: 'BatchGetItem',
+      parameters: [ 'language', 'translation', 'ids' ],
+      requestTemplates: {
+        'application/json': `{
+          "RequestItems": {
+            "${table.tableName}": {
+              "Keys": [
+                #foreach ($id in $input.params('ids').split(",") )
+                  {
+                    "${partitionKey}": { "S": "${partitionKeyTemplate}" },
+                    "${sortKey}": { "S": "$id" }
+                  }
+                  #if($foreach.hasNext),#end
+                #end
+              ]
+            }
+          }
+        }`,
       }
     });
 

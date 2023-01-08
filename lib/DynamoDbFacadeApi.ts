@@ -1,4 +1,5 @@
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as logs from 'aws-cdk-lib/aws-logs';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import { Construct } from 'constructs';
 
@@ -12,6 +13,7 @@ export interface ApiProps {
 
 export interface AddMethodProps {
   name: string;
+  dynamoDbAction: string;
   parameters: string[];
   requestTemplates: { [key: string]: string };
 }
@@ -24,6 +26,10 @@ export class DynamoDbFacadeApi extends Construct {
 
   constructor(scope: Construct, id: string, props: ApiProps) {
     super(scope, id);
+
+    const logGroup = new logs.LogGroup(this, id + 'Logs');
+    logGroup.grantWrite(new iam.ServicePrincipal('apigateway.amazonaws.com'));
+
     const api = new apigateway.RestApi(this, props.apiName, {
       endpointConfiguration: {
         types: [ apigateway.EndpointType.REGIONAL ],
@@ -33,7 +39,23 @@ export class DynamoDbFacadeApi extends Construct {
         allowMethods: [ 'OPTIONS', 'GET' ],
         allowHeaders: apigateway.Cors.DEFAULT_HEADERS.concat(['x-api-key'])
       },
+      cloudWatchRole: true,
+      deployOptions: {
+        accessLogDestination: new apigateway.LogGroupLogDestination(logGroup),
+        accessLogFormat: apigateway.AccessLogFormat.custom(JSON.stringify({
+          requestId: '$context.requestId',
+          userAgent: '$context.identity.userAgent',
+          sourceIp: '$context.identity.sourceIp',
+          requestTime: '$context.requestTime',
+          httpMethod: '$context.httpMethod',
+          stage: '$context.stage',
+          path: '$context.resourcePath',
+          status: '$context.status',
+          responseLength: '$context.responseLength',
+        })),
+      }
     });
+
     const plan = api.addUsagePlan('UsagePlan', {
       apiStages: [{ api, stage: api.deploymentStage }],
       throttle: props.throttleConfig,
@@ -52,10 +74,10 @@ export class DynamoDbFacadeApi extends Construct {
     this.publicAccessApiKey = publicAccessApiKey.keyId;
   }
 
-  addQueryMethod({ name, parameters, requestTemplates }: AddMethodProps) {
+  addGetMethod({ name, dynamoDbAction, parameters, requestTemplates }: AddMethodProps) {
     const feedApi = this.api.root.addResource(name);
 
-    const dynamoQueryIntegration = new apigateway.AwsIntegration({ service: 'dynamodb', action: 'Query', options: {
+    const dynamoQueryIntegration = new apigateway.AwsIntegration({ service: 'dynamodb', action: dynamoDbAction, options: {
       passthroughBehavior: apigateway.PassthroughBehavior.WHEN_NO_TEMPLATES,
       credentialsRole: this.props.credentialsRole,
       requestParameters: this.mapParameters(parameters, parameter => ({
