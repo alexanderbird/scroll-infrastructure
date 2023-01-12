@@ -58,7 +58,8 @@ export class ApplicationStack extends cdk.Stack {
       monthlyRequestLimit: 1000000,
     });
 
-    const partitionKeyTemplate = "bible|$input.params('language')|$input.params('translation')";
+    const biblePartitionKeyTemplate = "bible|$input.params('language')|$input.params('translation')";
+    const partitionKeyTemplate = "$input.params('document')|$input.params('language')|$input.params('translation')";
 
     api.addGetMethod({
       name: 'Feed',
@@ -70,7 +71,7 @@ export class ApplicationStack extends cdk.Stack {
             IndexName: feedIndex,
             KeyConditionExpression: `${partitionKey} = :partitionKey AND ${feedIndexSortKey} > :feedStart`,
             ExpressionAttributeValues: {
-                ':partitionKey': { S: partitionKeyTemplate },
+                ':partitionKey': { S: biblePartitionKeyTemplate },
                 ':feedStart': { S: "$input.params('feedStart')" },
             }
         }),
@@ -84,12 +85,12 @@ export class ApplicationStack extends cdk.Stack {
         'application/json': JSON.stringify({
             TableName: table.tableName,
             ExclusiveStartKey: {
-              [partitionKey]: { S: partitionKeyTemplate },
+              [partitionKey]: { S: biblePartitionKeyTemplate },
               [sortKey]: { S: "$input.params('startingId')" },
             },
             KeyConditionExpression: `${partitionKey} = :partitionKey AND begins_with(${sortKey}, :idPrefix)`,
             ExpressionAttributeValues: {
-                ':partitionKey': { S: partitionKeyTemplate },
+                ':partitionKey': { S: biblePartitionKeyTemplate },
                 ':idPrefix': { S: "$input.params('idPrefix')" },
             }
         }),
@@ -104,12 +105,12 @@ export class ApplicationStack extends cdk.Stack {
             TableName: table.tableName,
             ScanIndexForward: false,
             ExclusiveStartKey: {
-              [partitionKey]: { S: partitionKeyTemplate },
+              [partitionKey]: { S: biblePartitionKeyTemplate },
               [sortKey]: { S: "$input.params('startingId')" },
             },
             KeyConditionExpression: `${partitionKey} = :partitionKey AND begins_with(${sortKey}, :idPrefix)`,
             ExpressionAttributeValues: {
-                ':partitionKey': { S: partitionKeyTemplate },
+                ':partitionKey': { S: biblePartitionKeyTemplate },
                 ':idPrefix': { S: "$input.params('idPrefix')" },
             }
         }),
@@ -126,7 +127,7 @@ export class ApplicationStack extends cdk.Stack {
               "Keys": [
                 #foreach ($id in $input.params('ids').split(",") )
                   {
-                    "${partitionKey}": { "S": "${partitionKeyTemplate}" },
+                    "${partitionKey}": { "S": "${biblePartitionKeyTemplate}" },
                     "${sortKey}": { "S": "$id" }
                   }
                   #if($foreach.hasNext),#end
@@ -135,6 +136,20 @@ export class ApplicationStack extends cdk.Stack {
             }
           }
         }`,
+      }
+    });
+    api.addGetMethod({
+      name: 'Item',
+      dynamoDbAction: 'GetItem',
+      parameters: [ 'document', 'language', 'translation', 'id' ],
+      requestTemplates: {
+        'application/json': JSON.stringify({
+            TableName: table.tableName,
+            Key: {
+              [partitionKey]: { S: partitionKeyTemplate },
+              [sortKey]: { S: "$input.params('id')" },
+            },
+        }),
       }
     });
 
