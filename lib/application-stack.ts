@@ -51,6 +51,7 @@ export class ApplicationStack extends cdk.Stack {
       apiName: 'Scroll',
       credentialsRole: apiGatewayIntegrationRole,
       allowedOrigins: [
+        'https://scrollbible.app',
         'https://scroll-bible.netlify.app',
         'http://scrollbible.localhost:8080',
       ],
