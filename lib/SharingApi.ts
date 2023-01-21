@@ -83,13 +83,13 @@ export class SharingApi extends Construct {
   #end
   #set($verse = "$verse$verseTextPart")
 #end
+
 <html>
   <head>
-    <meta property="og:url" content="https://ln53c6r71b.execute-api.ca-central-1.amazonaws.com/prod/01-001-001">
-    <todo>https://$context.domainName$context.path</todo>
-    <meta property="twitter:url" content="https://ln53c6r71b.execute-api.ca-central-1.amazonaws.com/prod/01-001-001">
+    <meta property="og:url" content="$targetUrl">
+    <meta property="twitter:url" content="$targetUrl">
 
-    <title>Genesis 1:1</title>
+    <title>$reference</title>
     <meta name="title" content="$reference">
     <meta property="og:title" content="$reference">
     <meta property="twitter:title" content="$reference">
@@ -103,12 +103,115 @@ export class SharingApi extends Construct {
     <meta property="og:image" content="">
 
     <meta property="og:type" content="website">
-
-    <meta http-equiv="refresh" content="0;url=$targetUrl" />
   </head>
   <body>
-    <h1><a href="$targetUrl">$reference</a></h1>
-    <p>$verse</p>
+    <div class="loading-spinner-outer-container">
+      <div class="loading-spinner-middle-container">
+        <div class="loading-spinner-inner-container">
+          <svg class="loading-spinner" xmlns="http://www.w3.org/2000/svg" focusable="false" viewBox="0 0 100 100">
+            <circle cx="50%" cy="50%" style="stroke-dasharray: 282.743px; stroke-dashoffset: 141.372px; stroke-width: 10%;" r="45"></circle>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <style>
+      body {
+        height: 100%;
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      body > * {
+        margin: auto;
+      }
+
+      .loading-spinner-outer-container {
+        animation: loading-spinner-outer-container 1568.2352941176ms linear infinite;
+        color: rgba(0, 0, 0, 0.87);
+        font-size: 0px;
+        font-weight: 400;
+        height: 100px;
+        line-height: 0px;
+        position: absolute;
+        width: 100px
+      }
+
+      .loading-spinner-middle-container {
+        animation: loading-spinner-middle-container 5332ms cubic-bezier(0.4, 0, 0.2, 1) infinite both;
+        position: absolute;
+        height: 100px;
+        width: 100px
+      }
+
+      .loading-spinner-inner-container {
+        display: inline-flex;
+        overflow-x: hidden;
+        overflow-y: hidden;
+        position: relative;
+        white-space: nowrap;
+        height: 100px;
+        width: 50px
+      }
+
+      .loading-spinner {
+        animation: loading-spinner 1333ms cubic-bezier(0.4, 0, 0.2, 1) infinite both;
+        color: rgba(0, 0, 0, 0.87);
+        fill: rgba(0, 0, 0, 0);
+        height: 100px;
+        position: absolute;
+        stroke: rgb(63, 81, 181);
+        white-space: nowrap;
+        width: 100px
+
+      }
+
+      @keyframes loading-spinner {
+        0% {
+          transform: rotate(265deg);
+        }
+        50% {
+          transform: rotate(130deg);
+        }
+        100% {
+          transform: rotate(265deg);
+        }
+      }
+
+      @keyframes loading-spinner-middle-container {
+        12.5% {
+          transform: rotate(135deg);
+        }
+        25% {
+          transform: rotate(270deg);
+        }
+        37.5% {
+          transform: rotate(405deg);
+        }
+        50% {
+          transform: rotate(540deg);
+        }
+        62.5% {
+          transform: rotate(675deg);
+        }
+        75% {
+          transform: rotate(810deg);
+        }
+        87.5% {
+          transform: rotate(945deg);
+        }
+        100% {
+          transform: rotate(1080deg);
+        }
+      }
+
+      @keyframes loading-spinner-outer-container {
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
     <script>
       window.onload = function() {
         window.location.replace("$targetUrl");
