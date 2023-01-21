@@ -86,6 +86,8 @@ export class SharingApi extends Construct {
 
 <html>
   <head>
+    <link rel="icon" type="image/png" href="https://scrollbible.app/favicon.ico">
+
     <meta property="og:url" content="$targetUrl">
     <meta property="twitter:url" content="$targetUrl">
 
