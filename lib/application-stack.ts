@@ -5,6 +5,7 @@ import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { DynamoDbFacadeApi } from './DynamoDbFacadeApi';
+import { SharingApi } from './SharingApi';
 
 export class ApplicationStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -47,14 +48,15 @@ export class ApplicationStack extends cdk.Stack {
 
     table.grantReadData(apiGatewayIntegrationRole);
 
+    const allowedOrigins = [
+      'https://scrollbible.app',
+      'https://scroll-bible.netlify.app',
+      'http://scrollbible.localhost:8080',
+    ];
     const api = new DynamoDbFacadeApi(this, 'ScrollApi', {
       apiName: 'Scroll',
       credentialsRole: apiGatewayIntegrationRole,
-      allowedOrigins: [
-        'https://scrollbible.app',
-        'https://scroll-bible.netlify.app',
-        'http://scrollbible.localhost:8080',
-      ],
+      allowedOrigins,
       throttleConfig: { burstLimit: 100, rateLimit: 0.3 },
       monthlyRequestLimit: 1000000,
     });
@@ -152,6 +154,12 @@ export class ApplicationStack extends cdk.Stack {
             },
         }),
       }
+    });
+
+    const sharingApi = new SharingApi(this, 'ScrollSharingApi', {
+      coreApiUrl: `https://${api.id}.execute-api.ca-central-1.amazonaws.com/prod`,
+      allowedOrigins,
+      publicApiKeyForCoreApi: api.publicAccessApiKey,
     });
 
     new ssm.StringParameter(this, 'Parameter', {
