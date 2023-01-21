@@ -77,7 +77,7 @@ export class SharingApi extends Construct {
 #set($versePartsJson = $input.path('$.Item.data.S'))
 #set($verseParts = $util.parseJson($versePartsJson))
 #foreach($versePart in $verseParts)
-  #set($verseTextPart = $versePart.get("t"))
+  #set($verseTextPart = $versePart.get("t").replaceAll('"', '&quot;'))
   #if("$verse" != "")
     #set($verse = "$verse ")
   #end
