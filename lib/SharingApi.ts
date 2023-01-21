@@ -1,6 +1,7 @@
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
+import * as certificatemanager from 'aws-cdk-lib/aws-certificatemanager';
 import { Construct } from 'constructs';
 
 export interface SharingApiProps {
@@ -24,6 +25,18 @@ export class SharingApi extends Construct {
         allowMethods: [ 'OPTIONS', 'GET' ],
         allowHeaders: apigateway.Cors.DEFAULT_HEADERS
       },
+    });
+
+    const domainName = 'share.scrollbible.app';
+    const certificate = new certificatemanager.Certificate(this, id + "Certificate", {
+      domainName,
+      validation: certificatemanager.CertificateValidation.fromDns()
+    });
+
+    new apigateway.DomainName(this, id + "DomainName", {
+      domainName,
+      mapping: api,
+      certificate: certificate
     });
 
     // Regarding path parameters, see https://stackoverflow.com/a/69443454/3012550
